@@ -1,0 +1,10 @@
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 发布日志（本地 hook 输出，不入库）
+.git/release_skill.log
+
+# 系统文件
+.DS_Store
+Thumbs.db
