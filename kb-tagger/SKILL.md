@@ -80,3 +80,4 @@ Body 用第 5 步 payload，Authorization: Bearer dataset-key。
 - 脚本在技能目录下执行，cwd 已在技能包根目录
 - 不要修改脚本本身；字段 ID 以 route_cfg.py 输出为准
 - doc_summary 是中文概括，不是文件名
+- 2026-08-25 发布流水线联调标记：此版本由 git commit 自动部署
