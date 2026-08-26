@@ -29,9 +29,9 @@ python Scripts/find_docs.py "<topic>"
 
 ### 第 3 步：分块对比
 ```bash
-python Scripts/diff_docs.py "<标准版文件名>" "<偏离版文件名>" > diff_result.json
+python Scripts/diff_docs.py "<标准版文件名>" "<偏离版文件名>"
 ```
-输出差异块 JSON（`stats` + `blocks`，每块 type=replace/delete/insert，含行号与两侧内容）。
+脚本把差异块 JSON（`stats` + `blocks`，每块 type=replace/delete/insert，含行号与两侧内容）**直接输出到 stdout**，由 agent 捕获。若后续步骤需要文件：把捕获的 JSON 用 `write_temp_file` 写入 `diff_result.json`（写会话目录，传相对文件名即可）。
 
 ### 第 4 步：LLM 提炼差异表
 ```bash
@@ -60,7 +60,8 @@ python Scripts/summarize_prompt.py --file diff_result.json [--compact]
 
 ## 注意
 
-- 脚本在技能目录下执行，cwd 已在技能包根目录（`python Scripts/xxx.py`）
+- 脚本在技能目录下执行，cwd 固定在技能包根目录（`python Scripts/xxx.py`）；**不要传绝对路径的 cwd_relative**（插件会拒绝并提示）
+- **不要用 shell 重定向**（`> file` / `>> file`）：命令由插件直接执行（无 shell），`>` 只是普通参数不生效；落盘请用 `write_temp_file`，读回用相对文件名（插件自动映射到会话目录）
 - MinIO 凭据在 minio_client.py 默认值，环境变量可覆盖
 - 索引 `_index.json` 记录标准/偏离两侧文件名清单；文档是已清洗的 .docx.md（含清洗统计头，提炼时忽略）
 - 不要修改脚本本身；topic 匹配结果以 find_docs.py 输出为准
