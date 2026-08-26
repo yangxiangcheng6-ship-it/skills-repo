@@ -20,7 +20,23 @@ except Exception:
 # 本地 Dify 直连，禁用系统代理（梯子开着时 localhost 会被发给代理 → 502）
 urllib.request.install_opener(urllib.request.build_opener(urllib.request.ProxyHandler({})))
 
-API_URL = os.environ.get("DIFY_API_URL", "http://127.0.0.1/v1")
+
+def _first_reachable(urls: list[str], timeout: float = 1.0) -> str:
+    """容器内执行（skill_agent 插件）优先用容器名地址，失败回退 localhost"""
+    import socket
+    import urllib.parse
+    for url in urls:
+        parsed = urllib.parse.urlparse(url)
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        try:
+            socket.create_connection((parsed.hostname, port), timeout=timeout).close()
+            return url
+        except OSError:
+            continue
+    return urls[-1]
+
+
+API_URL = os.environ.get("DIFY_API_URL", _first_reachable(["http://api:5001/v1", "http://127.0.0.1/v1"]))
 API_KEY = os.environ.get("DIFY_API_KEY", "dataset-Kz491fr3x8jSWR8QEC8BYG3Z")
 
 KBS = [
