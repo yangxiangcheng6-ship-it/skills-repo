@@ -26,18 +26,26 @@ description: 智能入库打标专家。为 Dify 知识库文档打标元数据 
 
 ### 第 2 步：查 KB 路由
 ```bash
-python route_cfg.py <file_name> <version>
+python Scripts/route_cfg.py <file_name> <version>
 ```
 输出 `dataset_id`、`start_node_id`、`version_id`、`file_role_id`、`doc_summary_id`。
 对照表覆盖（标准,docx）（标准,xlsx）（偏离,docx）（偏离,xlsx）四类；未匹配时默认（标准,docx）并在结果里给出 `matched:false`。
 
 ### 第 3 步：获取文档内容片段
-- 文件已上传到会话：`read_temp_file` 读取；或用 `list_temp_files` 确认路径
+- 文件已上传到会话：`list_temp_files` 确认路径。**docx/xlsx 是二进制，`read_temp_file` 读不出文本**（会返回乱码），不要反复尝试
 - 文件不在会话中：用 Dify 检索接口拉取文档内容片段（query 用"概述 范围 定义 条款 义务 责任 安全 数据 价格 服务 协议"，hybrid_search，top_k=5，按 document_name 过滤）
+
+### 第 3.5 步：获取 document_id（必做）
+```bash
+python Scripts/list_docs.py <version> "<file_name>"
+```
+按文件名在对应版本知识库中查找文档，输出 `matched` + `document_id`。
+- `matched: true` → 记下 `document_id`，继续
+- `matched: false` → 读 `candidates` 和 `hint`：若有相似候选，把候选文件名回给用户确认后再继续；确实不在库中则告知用户"文档未入库，需先走 kb-ingest 入库"，**不要跳过此步硬打标**
 
 ### 第 4 步：判断 file_role 与 doc_summary
 ```bash
-python tag_prompt.py
+python Scripts/tag_prompt.py
 ```
 得到 7 分类法提示词模板，把第 3 步内容片段代入，由 LLM 输出：
 ```json
@@ -47,13 +55,13 @@ python tag_prompt.py
 
 ### 第 5 步：构造打标 payload
 ```bash
-python build_metadata.py <document_id> <version> <file_role> <doc_summary> <version_id> <file_role_id> <doc_summary_id>
+python Scripts/build_metadata.py <document_id> <version> <file_role> <doc_summary> <version_id> <file_role_id> <doc_summary_id>
 ```
 输出标准 `metadata_list` JSON（partial_update=true），字段顺序：version → file_role → doc_summary。
 
 ### 第 6 步：校验（建议执行）
 ```bash
-python validate_tags.py --file_role <角色> --doc_summary <概括> --version <版本>
+python Scripts/validate_tags.py --file_role <角色> --doc_summary <概括> --version <版本>
 ```
 - file_role 必须在 7 类内
 - doc_summary ≤ 15 字
@@ -61,9 +69,12 @@ python validate_tags.py --file_role <角色> --doc_summary <概括> --version <�
 校验失败先修正再继续。
 
 ### 第 7 步：执行打标
-调用 Dify 元数据更新接口：
-`POST /v1/datasets/{dataset_id}/documents/metadata`
-Body 用第 5 步 payload，Authorization: Bearer dataset-key。
+```bash
+python Scripts/apply_metadata.py <dataset_id> "<第5步payload的JSON原文>"
+```
+脚本内置 API key 并调用 Dify 元数据更新接口（`POST /v1/datasets/{dataset_id}/documents/metadata`）。
+- 输出 `ok: true` → 打标成功
+- 输出 `ok: false` → 把 `error` 原文回给用户，**不要伪造成功**
 
 ## 交付物
 
@@ -73,7 +84,7 @@ Body 用第 5 步 payload，Authorization: Bearer dataset-key。
 ## 参考
 
 - `Reference/打标规范.md`：7 分类法详细定义与 doc_summary 示例
-- `Scripts/`：route_cfg.py / tag_prompt.py / build_metadata.py / validate_tags.py（全部标准库，无第三方依赖）
+- `Scripts/`：route_cfg.py / tag_prompt.py / build_metadata.py / validate_tags.py / list_docs.py（查 document_id）/ apply_metadata.py（执行打标）（全部标准库，无第三方依赖）
 
 ## 注意
 
